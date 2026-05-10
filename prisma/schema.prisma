@@ -1,0 +1,900 @@
+// SISH — Sistemi Informatik Shëndetësor
+// Premium healthcare practice management database schema (multi-tenant)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+//  TENANT (Klinikat) — Multi-tenant root entity
+// ──────────────────────────────────────────────────────────────────────────────
+
+model Tenant {
+  id            String    @id @default(cuid())
+  code          String    @unique // subdomain: e.g. "klinika-x"
+  name          String
+  email         String?
+  phone         String?
+  address       String?
+  city          String?
+  country       String?   @default("Kosovë")
+  logoUrl       String?
+  primaryColor  String?   @default("#6366F1")
+  plan          String    @default("STARTER") // STARTER | PRO | ENTERPRISE
+  isActive      Boolean   @default(true)
+  trialEndsAt   DateTime?
+  maxUsers      Int       @default(5)
+  maxPatients   Int       @default(500)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  users         User[]
+  patients      Patient[]
+  visits        Visit[]
+  appointments  Appointment[]
+  labOrders     LabOrder[]
+  invoices      Invoice[]
+  quotes        Quote[]
+  departments   Department[]
+  services      Service[]
+  settings      Setting[]
+  auditLogs     AuditLog[]
+  surgeries     Surgery[]
+  operatingRooms OperatingRoom[]
+  suppliers     Supplier[]
+  warehouses    Warehouse[]
+  products      Product[]
+  productCategories ProductCategory[]
+  purchases     Purchase[]
+  cashboxSessions CashboxSession[]
+  dischargeSheets DischargeSheet[]
+  prescriptions Prescription[]
+  documents     Document[]
+  clinicalTemplates ClinicalTemplate[]
+  workflows     Workflow[]
+
+  @@index([code])
+  @@index([isActive])
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+//  AUTH & ACCESS CONTROL
+// ──────────────────────────────────────────────────────────────────────────────
+
+model User {
+  id              String    @id @default(cuid())
+  tenantId        String
+  tenant          Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  email           String
+  emailVerified   DateTime?
+  passwordHash    String
+  firstName       String
+  lastName        String
+  role            String    @default("VIEWER")
+  departmentId    String?
+  department      Department? @relation(fields: [departmentId], references: [id])
+  phone           String?
+  avatarUrl       String?
+  isActive        Boolean   @default(true)
+  twoFactorEnabled Boolean  @default(false)
+  twoFactorSecret String?
+  lastLoginAt     DateTime?
+  failedAttempts  Int       @default(0)
+  lockedUntil     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  sessions        Session[]
+  auditLogs       AuditLog[]
+  patientsCreated Patient[]    @relation("PatientCreatedBy")
+  visitsAsDoctor  Visit[]      @relation("VisitDoctor")
+  visitsCreated   Visit[]      @relation("VisitCreatedBy")
+  labOrders       LabOrder[]   @relation("LabOrderRequestedBy")
+  labResults      LabResult[]  @relation("LabResultEnteredBy")
+  invoicesIssued  Invoice[]    @relation("InvoiceIssuedBy")
+  appointments    Appointment[] @relation("AppointmentDoctor")
+
+  @@unique([tenantId, email])
+  @@index([tenantId])
+  @@index([email])
+  @@index([role])
+  @@index([departmentId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token        String   @unique
+  ipAddress    String?
+  userAgent    String?
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+
+  @@index([userId])
+  @@index([token])
+  @@index([expiresAt])
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+//  ORGANIZATION
+// ──────────────────────────────────────────────────────────────────────────────
+
+model Department {
+  id          String  @id @default(cuid())
+  tenantId    String
+  tenant      Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  code        String
+  name        String
+  nameSq      String  // Albanian name
+  icon        String? // Icon identifier
+  color       String? // Hex color
+  description String?
+  isActive    Boolean @default(true)
+  sortOrder   Int     @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users       User[]
+  visits      Visit[]
+  services    Service[]
+  labOrders   LabOrder[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+//  PATIENTS
+// ──────────────────────────────────────────────────────────────────────────────
+
+model Patient {
+  id              String     @id @default(cuid())
+  tenantId        String
+  tenant          Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  code            String     // Patient code (auto-generated, e.g. P-2026-00001)
+  firstName       String
+  lastName        String
+  parentName      String?    // Father's name (common in Balkans)
+  personalId      String?    // National ID number
+  dateOfBirth     DateTime?
+  gender          String     @default("UNSPECIFIED")
+  bloodType       String  @default("UNKNOWN")
+  phone           String?
+  email           String?
+  address         String?
+  city            String?
+  country         String?    @default("Kosovë")
+  occupation      String?
+  emergencyName   String?
+  emergencyPhone  String?
+  insuranceProvider String?
+  insuranceNumber String?
+  allergies       String?    // free-text
+  chronicDiseases String?    // free-text
+  notes           String?
+  photoUrl        String?
+  isActive        Boolean    @default(true)
+  createdById     String
+  createdBy       User       @relation("PatientCreatedBy", fields: [createdById], references: [id])
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  visits          Visit[]
+  labOrders       LabOrder[]
+  appointments    Appointment[]
+  invoices        Invoice[]
+  documents       Document[]
+  prescriptions   Prescription[]
+
+  @@unique([tenantId, code])
+  @@unique([tenantId, personalId])
+  @@index([tenantId])
+  @@index([firstName, lastName])
+  @@index([phone])
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+//  SERVICES & PRICING
+// ──────────────────────────────────────────────────────────────────────────────
+
+model Service {
+  id           String      @id @default(cuid())
+  tenantId        String
+  tenant          Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  code         String
+  name         String
+  type         String @default("CONSULTATION")
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [id])
+  price        Decimal     @default(0)
+  vatRate      Decimal     @default(0)
+  duration     Int?        // minutes
+  description  String?
+  isActive     Boolean     @default(true)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  visitItems       VisitService[]
+  labTestTemplate  LabTestTemplate?
+
+  @@index([code])
+  @@index([departmentId])
+  @@index([type])
+  @@unique([tenantId, code])
+  @@index([tenantId])
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+//  VISITS
+// ──────────────────────────────────────────────────────────────────────────────
+
+model Visit {
+  id           String      @id @default(cuid())
+  tenantId        String
+  tenant          Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  code         String // e.g. V-2026-00001
+  patientId    String
+  patient      Patient     @relation(fields: [patientId], references: [id], onDelete: Restrict)
+  doctorId     String?
+  doctor       User?       @relation("VisitDoctor", fields: [doctorId], references: [id])
+  departmentId String
+  department   Department  @relation(fields: [departmentId], references: [id])
+  status       String @default("PENDING")
+  scheduledAt  DateTime
+  startedAt    DateTime?
+  completedAt  DateTime?
+  reason       String?
+  diagnosis    String?
+  symptoms     String?
+  examination  String?
+  treatment    String?
+  notes        String?
+  totalAmount  Decimal     @default(0)
+  paidAmount   Decimal     @default(0)
+  createdById  String
+  createdBy    User        @relation("VisitCreatedBy", fields: [createdById], references: [id])
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  services     VisitService[]
+  labOrders    LabOrder[]
+  prescriptions Prescription[]
+  invoice      Invoice?
+
+  @@index([patientId])
+  @@index([doctorId])
+  @@index([departmentId])
+  @@index([status])
+  @@index([scheduledAt])
+  @@unique([tenantId, code])
+  @@index([tenantId])
+}
+
+model VisitService {
+  id        String  @id @default(cuid())
+  visitId   String
+  visit     Visit   @relation(fields: [visitId], references: [id], onDelete: Cascade)
+  serviceId String
+  service   Service @relation(fields: [serviceId], references: [id])
+  quantity  Int     @default(1)
+  unitPrice Decimal
+  discount  Decimal @default(0)
+  total     Decimal
+  notes     String?
+
+  @@index([visitId])
+  @@index([serviceId])
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+//  LABORATORY
+// ──────────────────────────────────────────────────────────────────────────────
+
+model LabTestTemplate {
+  id            String  @id @default(cuid())
+  serviceId     String  @unique
+  service       Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  category      String  // e.g. "Hematologji", "Biokimi"
+  sampleType    String? // e.g. "Gjak", "Urinë"
+  parameters    LabTestParameter[]
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model LabTestParameter {
+  id            String          @id @default(cuid())
+  templateId    String
+  template      LabTestTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  name          String
+  unit          String?
+  refRangeMin   Decimal?
+  refRangeMax   Decimal?
+  refRangeText  String?         // for non-numeric
+  inputType     String          @default("number") // number | text | select
+  options       String?         // JSON string for select options
+  sortOrder     Int             @default(0)
+
+  results       LabResult[]
+}
+
+model LabOrder {
+  id              String          @id @default(cuid())
+  tenantId        String
+  tenant          Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  code            String
+  // e.g. L-2026-00001
+  patientId       String
+  patient         Patient         @relation(fields: [patientId], references: [id], onDelete: Restrict)
+  visitId         String?
+  visit           Visit?          @relation(fields: [visitId], references: [id])
+  departmentId    String
+  department      Department      @relation(fields: [departmentId], references: [id])
+  requestedById   String
+  requestedBy     User            @relation("LabOrderRequestedBy", fields: [requestedById], references: [id])
+  status          String  @default("REQUESTED")
+  priority        String          @default("normal") // normal | urgent | stat
+  sampleTakenAt   DateTime?
+  completedAt     DateTime?
+  clinicalInfo    String?
+  notes           String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  results         LabResult[]
+
+  @@index([patientId])
+  @@index([visitId])
+  @@index([status])
+  @@index([code])
+  @@unique([tenantId, code])
+  @@index([tenantId])
+}
+
+model LabResult {
+  id            String           @id @default(cuid())
+  orderId       String
+  order         LabOrder         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  parameterId   String
+  parameter     LabTestParameter @relation(fields: [parameterId], references: [id])
+  value         String           // stored as string to support both numeric and text
+  unit          String?
+  flag          String  @default("PENDING")
+  comment       String?
+  enteredById   String?
+  enteredBy     User?            @relation("LabResultEnteredBy", fields: [enteredById], references: [id])
+  enteredAt     DateTime?
+  verifiedAt    DateTime?
+
+  @@index([orderId])
+  @@index([parameterId])
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+//  APPOINTMENTS
+// ──────────────────────────────────────────────────────────────────────────────
+
+model Appointment {
+  id           String            @id @default(cuid())
+  tenantId        String
+  tenant          Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  code         String
+  patientId    String
+  patient      Patient           @relation(fields: [patientId], references: [id], onDelete: Restrict)
+  doctorId     String
+  doctor       User              @relation("AppointmentDoctor", fields: [doctorId], references: [id])
+  scheduledAt  DateTime
+  durationMin  Int               @default(30)
+  status       String @default("SCHEDULED")
+  reason       String?
+  notes        String?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  @@index([patientId])
+  @@index([doctorId])
+  @@index([scheduledAt])
+  @@index([status])
+  @@unique([tenantId, code])
+  @@index([tenantId])
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+//  BILLING
+// ──────────────────────────────────────────────────────────────────────────────
+
+model Invoice {
+  id            String        @id @default(cuid())
+  tenantId        String
+  tenant          Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  number        String // e.g. INV-2026-000001
+  patientId     String
+  patient       Patient       @relation(fields: [patientId], references: [id], onDelete: Restrict)
+  visitId       String?       @unique
+  visit         Visit?        @relation(fields: [visitId], references: [id])
+  status        String @default("DRAFT")
+  issuedAt      DateTime?
+  dueDate       DateTime?
+  subtotal      Decimal       @default(0)
+  discount      Decimal       @default(0)
+  vat           Decimal       @default(0)
+  total         Decimal       @default(0)
+  paidAmount    Decimal       @default(0)
+  balance       Decimal       @default(0)
+  notes         String?
+  issuedById    String
+  issuedBy      User          @relation("InvoiceIssuedBy", fields: [issuedById], references: [id])
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  items         InvoiceItem[]
+  payments      Payment[]
+
+  @@index([patientId])
+  @@index([status])
+  @@index([number])
+  @@unique([tenantId, number])
+  @@index([tenantId])
+}
+
+model InvoiceItem {
+  id          String  @id @default(cuid())
+  invoiceId   String
+  invoice     Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  description String
+  quantity    Int     @default(1)
+  unitPrice   Decimal
+  discount    Decimal @default(0)
+  vat         Decimal @default(0)
+  total       Decimal
+
+  @@index([invoiceId])
+}
+
+model Payment {
+  id          String        @id @default(cuid())
+  invoiceId   String
+  invoice     Invoice       @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  amount      Decimal
+  method      String @default("CASH")
+  reference   String?       // transaction id, check no, etc.
+  paidAt      DateTime      @default(now())
+  notes       String?
+  createdAt   DateTime      @default(now())
+
+  @@index([invoiceId])
+  @@index([paidAt])
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+//  PRESCRIPTIONS & DOCUMENTS
+// ──────────────────────────────────────────────────────────────────────────────
+
+model Prescription {
+  id          String   @id @default(cuid())
+  tenantId        String
+  tenant          Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  code         String
+  patientId   String
+  patient     Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  visitId     String?
+  visit       Visit?   @relation(fields: [visitId], references: [id])
+  issuedAt    DateTime @default(now())
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  items       PrescriptionItem[]
+
+  @@index([patientId])
+  @@index([visitId])
+  @@unique([tenantId, code])
+  @@index([tenantId])
+}
+
+model PrescriptionItem {
+  id             String       @id @default(cuid())
+  prescriptionId String
+  prescription   Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+  drugName       String
+  dosage         String?
+  frequency      String?
+  duration       String?
+  instructions   String?
+  sortOrder      Int          @default(0)
+}
+
+model Document {
+  id          String   @id @default(cuid())
+  tenantId        String
+  tenant          Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  patientId   String
+  patient     Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  type        String   // discharge | report | xray | other
+  title       String
+  url         String?  // storage url
+  content     String?  // for text-based docs
+  mimeType    String?
+  sizeBytes   Int?
+  createdAt   DateTime @default(now())
+
+  @@index([patientId])
+  @@index([type])
+  @@index([tenantId])
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+//  AUDIT & SECURITY
+// ──────────────────────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id          String      @id @default(cuid())
+  tenantId        String
+  tenant          Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId      String?
+  user        User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action      String
+  entityType  String      // e.g. "Patient", "Visit"
+  entityId    String?
+  metadata    String?     // JSON
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime    @default(now())
+
+  @@index([userId])
+  @@index([entityType, entityId])
+  @@index([action])
+  @@index([createdAt])
+  @@index([tenantId])
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+//  SETTINGS
+// ──────────────────────────────────────────────────────────────────────────────
+
+model Setting {
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  key       String
+  value     String
+  category  String   @default("general")
+  updatedAt DateTime @updatedAt
+
+  @@id([tenantId, key])
+  @@index([tenantId])
+  @@index([category])
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+//  QUOTES / OFFERS — Sales offers with approval workflow
+// ──────────────────────────────────────────────────────────────────────────────
+
+model Quote {
+  id            String   @id @default(cuid())
+  tenantId        String
+  tenant          Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  code         String // Q-2026-00001
+  title         String
+  patientId     String?
+  patientName   String?  // for prospects without a patient record
+  patientPhone  String?
+  validFrom     DateTime @default(now())
+  validUntil    DateTime
+  status        String   @default("DRAFT") // DRAFT | SENT | APPROVED | REJECTED | EXPIRED | CONVERTED
+  subtotal      Decimal  @default(0)
+  discount      Decimal  @default(0)
+  vat           Decimal  @default(0)
+  total         Decimal  @default(0)
+  notes         String?
+  termsAndConditions String?
+  preparedById  String
+  approvedById  String?
+  approvedAt    DateTime?
+  signedAt      DateTime?
+  signatureUrl  String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  items         QuoteItem[]
+
+  @@index([status])
+  @@index([validUntil])
+  @@unique([tenantId, code])
+  @@index([tenantId])
+}
+
+model QuoteItem {
+  id          String  @id @default(cuid())
+  quoteId     String
+  quote       Quote   @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  description String
+  quantity    Int     @default(1)
+  unitPrice   Decimal
+  discount    Decimal @default(0)
+  total       Decimal
+  sortOrder   Int     @default(0)
+
+  @@index([quoteId])
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+//  OPERATING ROOMS & SURGERIES
+// ──────────────────────────────────────────────────────────────────────────────
+
+model OperatingRoom {
+  id          String     @id @default(cuid())
+  tenantId        String
+  tenant          Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name        String
+  code         String
+  capacity    Int        @default(1)
+  equipment   String?    // free-text
+  isActive    Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+
+  surgeries   Surgery[]
+  @@unique([tenantId, code])
+  @@index([tenantId])
+}
+
+model Surgery {
+  id              String         @id @default(cuid())
+  tenantId        String
+  tenant          Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  code         String // S-2026-00001
+  patientId       String
+  surgeonId       String
+  roomId          String
+  room            OperatingRoom  @relation(fields: [roomId], references: [id])
+  scheduledAt     DateTime
+  durationMin     Int            @default(60)
+  status          String         @default("SCHEDULED") // SCHEDULED | IN_PROGRESS | COMPLETED | CANCELLED
+  procedure       String         // operation name
+  anesthesiaType  String?        // GENERAL | LOCAL | REGIONAL | SEDATION
+  notes           String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@index([roomId])
+  @@index([scheduledAt])
+  @@index([patientId])
+  @@unique([tenantId, code])
+  @@index([tenantId])
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+//  INVENTORY (Stock Module)
+// ──────────────────────────────────────────────────────────────────────────────
+
+model Supplier {
+  id          String   @id @default(cuid())
+  tenantId        String
+  tenant          Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name        String
+  taxId       String?
+  contactName String?
+  phone       String?
+  email       String?
+  address     String?
+  notes       String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  purchases   Purchase[]
+
+  @@index([name])
+  @@index([tenantId])
+}
+
+model Warehouse {
+  id          String         @id @default(cuid())
+  tenantId        String
+  tenant          Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name        String
+  code         String
+  address     String?
+  isActive    Boolean        @default(true)
+  createdAt   DateTime       @default(now())
+
+  stockLevels StockLevel[]
+  @@unique([tenantId, code])
+  @@index([tenantId])
+}
+
+model ProductCategory {
+  id          String    @id @default(cuid())
+  tenantId        String
+  tenant          Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name        String
+  parentId    String?
+  parent      ProductCategory?  @relation("CategoryParent", fields: [parentId], references: [id])
+  children    ProductCategory[] @relation("CategoryParent")
+  createdAt   DateTime  @default(now())
+
+  products    Product[]
+  @@index([tenantId])
+}
+
+model Product {
+  id           String         @id @default(cuid())
+  tenantId        String
+  tenant          Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  code         String
+  name         String
+  categoryId   String?
+  category     ProductCategory? @relation(fields: [categoryId], references: [id])
+  unit         String         @default("copë") // copë, pako, kg, ml, ...
+  barcode      String?
+  sellPrice    Decimal        @default(0)
+  buyPrice     Decimal        @default(0)
+  vatRate      Decimal        @default(0)
+  minStock     Int            @default(0)
+  isActive     Boolean        @default(true)
+  description  String?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  stockLevels  StockLevel[]
+  purchaseItems PurchaseItem[]
+
+  @@index([code])
+  @@index([categoryId])
+  @@unique([tenantId, code])
+  @@index([tenantId])
+}
+
+model StockLevel {
+  id          String    @id @default(cuid())
+  productId   String
+  product     Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  warehouseId String
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id])
+  quantity    Decimal   @default(0)
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([productId, warehouseId])
+  @@index([productId])
+  @@index([warehouseId])
+}
+
+model Purchase {
+  id            String   @id @default(cuid())
+  tenantId        String
+  tenant          Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  number        String // PUR-2026-00001
+  supplierId    String
+  supplier      Supplier @relation(fields: [supplierId], references: [id])
+  warehouseId   String
+  status        String   @default("DRAFT") // DRAFT | RECEIVED | CANCELLED
+  receivedAt    DateTime?
+  subtotal      Decimal  @default(0)
+  vat           Decimal  @default(0)
+  total         Decimal  @default(0)
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  items         PurchaseItem[]
+
+  @@index([supplierId])
+  @@index([status])
+  @@unique([tenantId, number])
+  @@index([tenantId])
+}
+
+model PurchaseItem {
+  id         String   @id @default(cuid())
+  purchaseId String
+  purchase   Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id])
+  quantity   Decimal
+  unitPrice  Decimal
+  total      Decimal
+
+  @@index([purchaseId])
+  @@index([productId])
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+//  CASHBOX SESSIONS (open/close day)
+// ──────────────────────────────────────────────────────────────────────────────
+
+model CashboxSession {
+  id            String    @id @default(cuid())
+  tenantId        String
+  tenant          Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  openedById    String
+  closedById    String?
+  openedAt      DateTime  @default(now())
+  closedAt      DateTime?
+  openingFloat  Decimal   @default(0)   // amount of cash in drawer at open
+  closingCash   Decimal?                // counted cash at close
+  expectedCash  Decimal?                // calculated expected cash
+  variance      Decimal?                // closingCash - expectedCash
+  notes         String?
+
+  @@index([openedAt])
+  @@index([closedAt])
+  @@index([tenantId])
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+//  DISCHARGE SHEETS
+// ──────────────────────────────────────────────────────────────────────────────
+
+model DischargeSheet {
+  id              String   @id @default(cuid())
+  tenantId        String
+  tenant          Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  number        String // DS-2026-00001
+  patientId       String
+  visitId         String?
+  admittedAt      DateTime
+  dischargedAt    DateTime?
+  primaryDiagnosis String
+  secondaryDiagnoses String?
+  treatmentSummary String?
+  recommendations  String?
+  followUpDate    DateTime?
+  signedById      String?
+  signedAt        DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([patientId])
+  @@index([visitId])
+  @@unique([tenantId, number])
+  @@index([tenantId])
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+//  CLINICAL TEMPLATES — preset phrases doctors select during visits
+// ──────────────────────────────────────────────────────────────────────────────
+
+model ClinicalTemplate {
+  id            String   @id @default(cuid())
+  tenantId        String
+  tenant          Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  category      String   // SYMPTOM | EXAM | DIAGNOSIS | THERAPY | ANALYSIS | ADVICE | CONTROL | NOTE
+  departmentId  String?
+  title         String   // short label
+  body          String   // template text with placeholders like {{age}}, {{patient_name}}
+  shortcut      String?  // optional keyboard shortcut / abbreviation
+  icd10         String?  // ICD-10 code (for diagnoses)
+  isActive      Boolean  @default(true)
+  sortOrder     Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([category])
+  @@index([departmentId])
+  @@index([tenantId])
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+//  WORKFLOWS — automation rules
+// ──────────────────────────────────────────────────────────────────────────────
+
+model Workflow {
+  id          String   @id @default(cuid())
+  tenantId        String
+  tenant          Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  trigger     String   // VISIT_CREATED | VISIT_COMPLETED | LAB_ORDERED | LAB_RESULT_CRITICAL | INVOICE_OVERDUE | APPT_TOMORROW | etc.
+  isActive    Boolean  @default(true)
+  config      String?  // JSON for trigger config
+  actions     String?  // JSON for action chain (notify, assign, create, etc.)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([trigger])
+  @@index([tenantId])
+}
