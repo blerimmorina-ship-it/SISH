@@ -63,10 +63,10 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     );
   }
 
-  // Nëse email-i ndryshon, kontrollo unicitetin
+  // Nëse email-i ndryshon, kontrollo unicitetin brenda tenant-it
   const newEmail = body.email.toLowerCase();
   if (newEmail !== existing.email) {
-    const dup = await db.user.findUnique({ where: { email: newEmail } });
+    const dup = await db.user.findFirst({ where: { email: newEmail } });
     if (dup) return NextResponse.json({ error: "Email-i është në përdorim" }, { status: 409 });
   }
 

@@ -48,7 +48,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: `Fjalëkalimi: ${strength.issues.join(", ")}` }, { status: 400 });
   }
 
-  const existing = await db.user.findUnique({ where: { email: body.email.toLowerCase() } });
+  // User është @@unique([tenantId, email]) — gjej brenda tenant-it (auto-injected)
+  const existing = await db.user.findFirst({ where: { email: body.email.toLowerCase() } });
   if (existing) {
     return NextResponse.json({ error: "Email-i është në përdorim" }, { status: 409 });
   }
