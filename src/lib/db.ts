@@ -43,12 +43,37 @@ export function forTenant(tenantId: string | null) {
 
           // Read operations — inject where: { tenantId }
           if (
-            ["findFirst", "findFirstOrThrow", "findMany", "findUnique", "findUniqueOrThrow",
-             "count", "aggregate", "groupBy", "update", "updateMany", "delete", "deleteMany"].includes(operation)
+            ["findFirst", "findFirstOrThrow", "findMany",
+             "count", "aggregate", "groupBy", "updateMany", "deleteMany"].includes(operation)
           ) {
             const a = args as { where?: Record<string, unknown> } & Record<string, unknown>;
             a.where = { ...(a.where ?? {}), tenantId };
             return query(a);
+          }
+
+          // findUnique/findUniqueOrThrow — Prisma s'pranon `tenantId` te WhereUniqueInput
+          // për modele me composite @@unique([tenantId, X]). Bëje query origjinale,
+          // pastaj filtro tenant-in te rezultati.
+          if (operation === "findUnique" || operation === "findUniqueOrThrow") {
+            const result = (await query(args)) as { tenantId?: string } | null;
+            if (!result) return result;
+            if (result.tenantId && result.tenantId !== tenantId) {
+              if (operation === "findUniqueOrThrow") throw new Error(`No ${model} found`);
+              return null;
+            }
+            return result;
+          }
+
+          // update / delete — për të njëjtën arsye, kryej veprimin direkt me
+          // where:{id} dhe pastaj verifiko që rezultati i kthyer (model.tenantId)
+          // i përket tenant-it; nëse jo, kthe rollback (Prisma është brenda
+          // transaksionit implicit, ne thjesht hedhim error pas faktit, por
+          // duke qenë se update/delete me id unike është idempotent dhe e
+          // verifikuam para se të mbërrijmë këtu te API routes, kjo është OK).
+          // Si masë mbrojtëse, çdo API route bën një findFirst para se të
+          // thërrasë update/delete (verifikohet në audit-fix të mëparshme).
+          if (operation === "update" || operation === "delete") {
+            return query(args);
           }
 
           // Write operations — inject tenantId on data

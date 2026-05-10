@@ -19,7 +19,7 @@ export default async function EditUserPage({
   const db = await getDb();
   const { id } = await params;
   const [user, departments] = await Promise.all([
-    db.user.findUnique({
+    db.user.findFirst({
       where: { id },
       select: {
         id: true,

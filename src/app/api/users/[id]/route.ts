@@ -35,7 +35,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   }
 
   const { id } = await ctx.params;
-  const existing = await db.user.findUnique({ where: { id } });
+  const existing = await db.user.findFirst({ where: { id } });
   if (!existing) return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
 
   let body: z.infer<typeof schema>;
@@ -122,7 +122,7 @@ export async function DELETE(_req: NextRequest, ctx: { params: Promise<{ id: str
   if (id === session.userId) {
     return NextResponse.json({ error: "Nuk mund të çaktivizoni veten" }, { status: 400 });
   }
-  const existing = await db.user.findUnique({ where: { id } });
+  const existing = await db.user.findFirst({ where: { id } });
   if (!existing) return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
 
   // Soft-delete: çaktivizo në vend të fshirjes (mban referencat e historive)
