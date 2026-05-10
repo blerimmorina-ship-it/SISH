@@ -26,35 +26,68 @@ interface Option { id: string; name: string }
 interface ServiceOption extends Option { price: number; code: string }
 interface PatientOption { id: string; firstName: string; lastName: string; code: string; phone: string | null }
 
+export interface VisitInitialValues {
+  id: string;
+  code: string;
+  patient: PatientOption;
+  departmentId: string;
+  doctorId: string | null;
+  scheduledAt: string;          // ISO
+  reason: string | null;
+  diagnosis: string | null;
+  symptoms: string | null;
+  notes: string | null;
+  serviceIds: string[];
+}
+
 interface VisitFormProps {
   departments: Option[];
   doctors: Option[];
   services: ServiceOption[];
   defaultPatientId?: string;
+  /** Nëse ka, formi është në mode edit dhe bën PATCH te /api/visits/{id} */
+  initialVisit?: VisitInitialValues;
 }
 
-export function VisitForm({ departments, doctors, services, defaultPatientId }: VisitFormProps) {
+export function VisitForm({ departments, doctors, services, defaultPatientId, initialVisit }: VisitFormProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
-  const [patientId, setPatientId] = useState(defaultPatientId ?? "");
+  const isEdit = Boolean(initialVisit);
+
+  const [patientId, setPatientId] = useState(initialVisit?.patient.id ?? defaultPatientId ?? "");
   const [patientQuery, setPatientQuery] = useState("");
   const [patientResults, setPatientResults] = useState<PatientOption[]>([]);
-  const [selectedPatient, setSelectedPatient] = useState<PatientOption | null>(null);
+  const [selectedPatient, setSelectedPatient] = useState<PatientOption | null>(
+    initialVisit?.patient ?? null,
+  );
 
-  const [departmentId, setDepartmentId] = useState(departments[0]?.id ?? "");
-  const [doctorId, setDoctorId] = useState("");
+  const [departmentId, setDepartmentId] = useState(
+    initialVisit?.departmentId ?? departments[0]?.id ?? "",
+  );
+  const [doctorId, setDoctorId] = useState(initialVisit?.doctorId ?? "");
   const [scheduledAt, setScheduledAt] = useState(() => {
+    if (initialVisit?.scheduledAt) {
+      const d = new Date(initialVisit.scheduledAt);
+      d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+      return d.toISOString().slice(0, 16);
+    }
     const d = new Date();
     d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
     return d.toISOString().slice(0, 16);
   });
-  const [reason, setReason] = useState("");
-  const [diagnosis, setDiagnosis] = useState("");
-  const [symptoms, setSymptoms] = useState("");
-  const [notes, setNotes] = useState("");
+  const [reason, setReason] = useState(initialVisit?.reason ?? "");
+  const [diagnosis, setDiagnosis] = useState(initialVisit?.diagnosis ?? "");
+  const [symptoms, setSymptoms] = useState(initialVisit?.symptoms ?? "");
+  const [notes, setNotes] = useState(initialVisit?.notes ?? "");
 
-  const [selectedServices, setSelectedServices] = useState<ServiceOption[]>([]);
+  const [selectedServices, setSelectedServices] = useState<ServiceOption[]>(
+    initialVisit
+      ? initialVisit.serviceIds
+          .map((sid) => services.find((s) => s.id === sid))
+          .filter((s): s is ServiceOption => Boolean(s))
+      : [],
+  );
   const [serviceQuery, setServiceQuery] = useState("");
 
   // Patient lookup
@@ -130,8 +163,10 @@ export function VisitForm({ departments, doctors, services, defaultPatientId }: 
     }
     startTransition(async () => {
       try {
-        const res = await fetch("/api/visits", {
-          method: "POST",
+        const url = isEdit ? `/api/visits/${initialVisit!.id}` : "/api/visits";
+        const method = isEdit ? "PATCH" : "POST";
+        const res = await fetch(url, {
+          method,
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             patientId,
@@ -147,10 +182,10 @@ export function VisitForm({ departments, doctors, services, defaultPatientId }: 
         });
         const json = await res.json();
         if (!res.ok) {
-          toast.error(json.error ?? "Krijimi dështoi");
+          toast.error(json.error ?? (isEdit ? "Përditësimi dështoi" : "Krijimi dështoi"));
           return;
         }
-        toast.success("Vizita u krijua");
+        toast.success(isEdit ? "Vizita u përditësua" : "Vizita u krijua");
         router.push(`/visits/${json.visit.id}` as never);
         router.refresh();
       } catch {
@@ -385,7 +420,7 @@ export function VisitForm({ departments, doctors, services, defaultPatientId }: 
             </>
           ) : (
             <>
-              <Save className="h-4 w-4" /> Ruaj vizitën
+              <Save className="h-4 w-4" /> {isEdit ? "Ruaj ndryshimet" : "Ruaj vizitën"}
             </>
           )}
         </Button>
