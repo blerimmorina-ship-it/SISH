@@ -3,6 +3,10 @@ import { getCurrentUser } from "@/lib/auth";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
 
+// Të gjitha rrugët e (app) janë per-request: kërkojnë session/cookies dhe DB.
+// force-dynamic e ndal Next.js të provojë prerender statik gjatë build-it.
+export const dynamic = "force-dynamic";
+
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
