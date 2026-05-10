@@ -1,6 +1,7 @@
 import { cn } from "@/lib/utils";
+import { APP_VERSION } from "@/lib/version";
 
-export function SishLogo({ className, showWordmark = true }: { className?: string; showWordmark?: boolean }) {
+export function SishLogo({ className, showWordmark = true, showVersion = true }: { className?: string; showWordmark?: boolean; showVersion?: boolean }) {
   return (
     <div className={cn("flex items-center gap-2.5", className)}>
       <div className="relative">
@@ -37,9 +38,19 @@ export function SishLogo({ className, showWordmark = true }: { className?: strin
       </div>
       {showWordmark && (
         <div className="flex flex-col leading-none">
-          <span className="text-base font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
-            SISH
-          </span>
+          <div className="flex items-center gap-1.5">
+            <span className="text-base font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
+              SISH
+            </span>
+            {showVersion && (
+              <span
+                className="rounded-md border border-primary/20 bg-primary/10 px-1.5 py-px text-[9px] font-semibold uppercase tracking-wider text-primary"
+                title={`SISH v${APP_VERSION}`}
+              >
+                v{APP_VERSION}
+              </span>
+            )}
+          </div>
           <span className="text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
             Health · Cloud
           </span>
