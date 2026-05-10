@@ -1,7 +1,17 @@
 {
   "$schema": "https://railway.com/railway.schema.json",
   "build": {
-    "builder": "NIXPACKS"
+    "builder": "NIXPACKS",
+    "watchPatterns": [
+      "**",
+      "!src/lib/version.ts",
+      "!.github/**",
+      "!docs/**",
+      "!supabase/**",
+      "!README.md",
+      "!.env.example",
+      "!scripts/**"
+    ]
   },
   "deploy": {
     "startCommand": "npx prisma db push --accept-data-loss --skip-generate && npx tsx prisma/seed.ts && npm run start",
