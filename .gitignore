@@ -28,6 +28,7 @@ pnpm-debug.log*
 .vscode
 .idea
 .cursor
+.claude
 
 # OS
 .DS_Store
