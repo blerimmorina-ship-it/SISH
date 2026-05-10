@@ -8,10 +8,10 @@ export const dynamic = "force-dynamic";
 export default async function NewLabOrderPage({
   searchParams,
 }: {
-  searchParams: Promise<{ patientId?: string }>;
+  searchParams: Promise<{ patientId?: string; visitId?: string }>;
 }) {
   const db = await getDb();
-  const { patientId } = await searchParams;
+  const { patientId, visitId } = await searchParams;
   const [departments, templates] = await Promise.all([
     db.department.findMany({ where: { isActive: true }, orderBy: { sortOrder: "asc" } }),
     db.labTestTemplate.findMany({
@@ -43,6 +43,7 @@ export default async function NewLabOrderPage({
           price: Number(t.service.price),
         }))}
         defaultPatientId={patientId}
+        defaultVisitId={visitId}
       />
     </div>
   );

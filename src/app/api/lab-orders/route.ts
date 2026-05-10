@@ -8,6 +8,7 @@ import { generateCode } from "@/lib/utils";
 const schema = z.object({
   patientId: z.string().min(1),
   departmentId: z.string().min(1),
+  visitId: z.string().nullable().optional(),
   priority: z.enum(["normal", "urgent", "stat"]).default("normal"),
   clinicalInfo: z.string().max(2000).optional().or(z.literal("")),
   notes: z.string().max(2000).optional().or(z.literal("")),
@@ -46,6 +47,7 @@ export async function POST(req: NextRequest) {
       code: generateCode("L", seq),
       patientId: body.patientId,
       departmentId: body.departmentId,
+      visitId: body.visitId || null,
       requestedById: session.userId,
       priority: body.priority,
       clinicalInfo: body.clinicalInfo || null,

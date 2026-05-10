@@ -27,10 +27,12 @@ export function LabOrderForm({
   departments,
   templates,
   defaultPatientId,
+  defaultVisitId,
 }: {
   departments: DeptOption[];
   templates: TemplateOption[];
   defaultPatientId?: string;
+  defaultVisitId?: string;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -101,6 +103,7 @@ export function LabOrderForm({
           body: JSON.stringify({
             patientId,
             departmentId,
+            visitId: defaultVisitId || null,
             priority,
             clinicalInfo,
             notes,

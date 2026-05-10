@@ -40,7 +40,18 @@ export async function middleware(req: NextRequest) {
 
   const key = getSecretKey();
   if (!key) {
-    return NextResponse.next();
+    // Fail-closed: nëse AUTH_SECRET mungon ose është shumë i shkurtër, asnjë
+    // request i mbrojtur s'mund të verifikohet — refuzo, mos kalo.
+    if (pathname.startsWith("/api/")) {
+      return new NextResponse(
+        JSON.stringify({ error: "Server misconfigured: AUTH_SECRET" }),
+        { status: 500, headers: { "content-type": "application/json" } },
+      );
+    }
+    const url = req.nextUrl.clone();
+    url.pathname = "/login";
+    url.searchParams.set("from", pathname);
+    return NextResponse.redirect(url);
   }
 
   try {

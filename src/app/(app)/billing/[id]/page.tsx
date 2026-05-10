@@ -59,8 +59,10 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
             <Button variant="ghost" size="sm" asChild>
               <Link href="/billing"><ArrowLeft className="h-4 w-4" /> Kthehu</Link>
             </Button>
-            <Button variant="outline" size="sm">
-              <Printer className="h-4 w-4" /> Printo
+            <Button variant="outline" size="sm" asChild>
+              <Link href={`/billing/${invoice.id}/print` as never} target="_blank">
+                <Printer className="h-4 w-4" /> Printo
+              </Link>
             </Button>
           </>
         }

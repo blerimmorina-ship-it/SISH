@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { Plus, ShieldCheck, Mail, Phone, MoreHorizontal } from "lucide-react";
+import { Plus, ShieldCheck, Mail, Phone, Edit } from "lucide-react";
 import { getDb } from "@/lib/db-context";
 import { formatRelative, initials } from "@/lib/utils";
 import { getCurrentSession, hasPermission, ROLE_LABELS } from "@/lib/auth";
@@ -96,8 +96,10 @@ export default async function UsersPage() {
                       )}
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <Button variant="ghost" size="icon">
-                        <MoreHorizontal className="h-4 w-4" />
+                      <Button variant="ghost" size="sm" asChild>
+                        <Link href={`/users/${u.id}/edit` as never}>
+                          <Edit className="h-4 w-4" /> Edito
+                        </Link>
                       </Button>
                     </td>
                   </tr>

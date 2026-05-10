@@ -4,10 +4,6 @@ import {
   ArrowLeft,
   TestTube2,
   Printer,
-  Save,
-  AlertCircle,
-  CheckCircle2,
-  Clock,
 } from "lucide-react";
 import { getDb } from "@/lib/db-context";
 import { formatDateTime } from "@/lib/utils";
@@ -16,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ResultsForm } from "./results-form";
+import { LabOrderStatusActions } from "./status-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -68,8 +65,10 @@ export default async function LabOrderDetailPage({ params }: { params: Promise<{
             <Button variant="ghost" size="sm" asChild>
               <Link href="/lab/orders"><ArrowLeft className="h-4 w-4" /> Kthehu</Link>
             </Button>
-            <Button variant="outline" size="sm">
-              <Printer className="h-4 w-4" /> Printo
+            <Button variant="outline" size="sm" asChild>
+              <Link href={`/lab/orders/${order.id}/print` as never} target="_blank">
+                <Printer className="h-4 w-4" /> Printo
+              </Link>
             </Button>
           </>
         }
@@ -103,16 +102,8 @@ export default async function LabOrderDetailPage({ params }: { params: Promise<{
 
         <Card>
           <CardHeader><CardTitle className="text-base">Veprime të shpejta</CardTitle></CardHeader>
-          <CardContent className="space-y-2">
-            <Button variant="info" size="sm" className="w-full">
-              <Clock className="h-4 w-4" /> Shëno mostrën e marrë
-            </Button>
-            <Button variant="warning" size="sm" className="w-full">
-              <AlertCircle className="h-4 w-4" /> Fillo procesimin
-            </Button>
-            <Button variant="success" size="sm" className="w-full">
-              <CheckCircle2 className="h-4 w-4" /> Përfundo urdhrin
-            </Button>
+          <CardContent>
+            <LabOrderStatusActions orderId={order.id} status={order.status} />
           </CardContent>
         </Card>
       </div>

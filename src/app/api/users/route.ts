@@ -33,6 +33,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
 
+  // SIGURI: Vetëm një SUPER_ADMIN tjetër mund të krijojë SUPER_ADMIN.
+  // Pa këtë check, çdo ADMIN i çdo tenanti do të mund të bënte
+  // privilege-eskalim cross-tenant duke krijuar përdorues SUPER_ADMIN.
+  if (body.role === "SUPER_ADMIN" && session.role !== "SUPER_ADMIN") {
+    return NextResponse.json(
+      { error: "Vetëm SUPER_ADMIN mund të caktojë rolin SUPER_ADMIN" },
+      { status: 403 },
+    );
+  }
+
   const strength = evaluatePasswordStrength(body.password);
   if (strength.issues.length > 0) {
     return NextResponse.json({ error: `Fjalëkalimi: ${strength.issues.join(", ")}` }, { status: 400 });

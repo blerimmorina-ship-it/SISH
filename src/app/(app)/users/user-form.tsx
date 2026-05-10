@@ -16,45 +16,79 @@ const ROLES: Role[] = [
   "RECEPTIONIST", "ACCOUNTANT", "NURSE", "VIEWER",
 ];
 
-export function UserForm({ departments }: { departments: { id: string; name: string }[] }) {
+export interface UserInitialValues {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string | null;
+  role: Role;
+  departmentId: string | null;
+  twoFactorEnabled: boolean;
+  isActive: boolean;
+}
+
+export function UserForm({
+  departments,
+  initialUser,
+}: {
+  departments: { id: string; name: string }[];
+  initialUser?: UserInitialValues;
+}) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const isEdit = Boolean(initialUser);
 
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
+  const [firstName, setFirstName] = useState(initialUser?.firstName ?? "");
+  const [lastName, setLastName] = useState(initialUser?.lastName ?? "");
+  const [email, setEmail] = useState(initialUser?.email ?? "");
+  const [phone, setPhone] = useState(initialUser?.phone ?? "");
   const [password, setPassword] = useState("");
   const [showPwd, setShowPwd] = useState(false);
-  const [role, setRole] = useState<Role>("DOCTOR");
-  const [departmentId, setDepartmentId] = useState("");
-  const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
+  const [role, setRole] = useState<Role>(initialUser?.role ?? "DOCTOR");
+  const [departmentId, setDepartmentId] = useState(initialUser?.departmentId ?? "");
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState(initialUser?.twoFactorEnabled ?? false);
+  const [isActive, setIsActive] = useState(initialUser?.isActive ?? true);
 
   const strength = evaluatePasswordStrength(password);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (strength.issues.length > 0) {
+    // Te edit, password është opsional. Te new, është i detyrueshëm.
+    if (!isEdit && strength.issues.length > 0) {
+      toast.error(`Fjalëkalimi: ${strength.issues.join(", ")}`);
+      return;
+    }
+    if (isEdit && password && strength.issues.length > 0) {
       toast.error(`Fjalëkalimi: ${strength.issues.join(", ")}`);
       return;
     }
     startTransition(async () => {
       try {
-        const res = await fetch("/api/users", {
-          method: "POST",
+        const url = isEdit ? `/api/users/${initialUser!.id}` : "/api/users";
+        const method = isEdit ? "PATCH" : "POST";
+        const body: Record<string, unknown> = {
+          firstName,
+          lastName,
+          email,
+          phone,
+          role,
+          departmentId: departmentId || null,
+          twoFactorEnabled,
+        };
+        if (isEdit) body.isActive = isActive;
+        if (!isEdit || password) body.password = password;
+        const res = await fetch(url, {
+          method,
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            firstName, lastName, email, phone, password, role,
-            departmentId: departmentId || null,
-            twoFactorEnabled,
-          }),
+          body: JSON.stringify(body),
         });
         const json = await res.json();
         if (!res.ok) {
-          toast.error(json.error ?? "Krijimi dështoi");
+          toast.error(json.error ?? (isEdit ? "Përditësimi dështoi" : "Krijimi dështoi"));
           return;
         }
-        toast.success("Përdoruesi u krijua");
+        toast.success(isEdit ? "Përdoruesi u përditësua" : "Përdoruesi u krijua");
         router.push("/users");
         router.refresh();
       } catch {
@@ -118,13 +152,15 @@ export function UserForm({ departments }: { departments: { id: string; name: str
             </select>
           </div>
           <div className="md:col-span-2">
-            <Label className="mb-1.5 text-xs">Fjalëkalimi *</Label>
+            <Label className="mb-1.5 text-xs">
+              {isEdit ? "Fjalëkalimi i ri (lëre bosh për ta mbajtur)" : "Fjalëkalimi *"}
+            </Label>
             <Input
               type={showPwd ? "text" : "password"}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              required
-              minLength={8}
+              required={!isEdit}
+              minLength={isEdit && !password ? undefined : 8}
               iconRight={
                 <button type="button" onClick={() => setShowPwd((v) => !v)} className="text-muted-foreground hover:text-foreground">
                   {showPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -160,13 +196,28 @@ export function UserForm({ departments }: { departments: { id: string; name: str
             <ShieldCheck className="h-4 w-4 text-success" />
             Aktivizo autentifikim me 2 faktorë (rekomandohet)
           </label>
+          {isEdit && (
+            <label className="md:col-span-2 flex items-center gap-2 text-sm cursor-pointer">
+              <input
+                type="checkbox"
+                checked={isActive}
+                onChange={(e) => setIsActive(e.target.checked)}
+                className="h-4 w-4 rounded border-input text-primary"
+              />
+              Llogaria aktive (çakto vetëm për të çaktivizuar përdoruesin)
+            </label>
+          )}
         </CardContent>
       </Card>
 
       <div className="flex items-center justify-end gap-2">
         <Button type="button" variant="ghost" onClick={() => router.back()}>Anulo</Button>
         <Button type="submit" variant="premium" disabled={isPending}>
-          {isPending ? <><Loader2 className="h-4 w-4 animate-spin" /> Duke krijuar…</> : <><Save className="h-4 w-4" /> Krijo përdoruesin</>}
+          {isPending ? (
+            <><Loader2 className="h-4 w-4 animate-spin" /> Duke ruajtur…</>
+          ) : (
+            <><Save className="h-4 w-4" /> {isEdit ? "Ruaj ndryshimet" : "Krijo përdoruesin"}</>
+          )}
         </Button>
       </div>
     </form>

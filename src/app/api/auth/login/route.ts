@@ -58,7 +58,16 @@ export async function POST(req: NextRequest) {
       });
 
   if (!user || !user.isActive || !user.tenant.isActive) {
-    await audit({ action: "LOGIN_FAILED", entityType: "User", metadata: { email: body.email }, ipAddress: ip, userAgent });
+    if (tenantId) {
+      await audit({
+        action: "LOGIN_FAILED",
+        entityType: "User",
+        metadata: { email: body.email },
+        ipAddress: ip,
+        userAgent,
+        tenantId,
+      });
+    }
     return NextResponse.json({ error: "Email ose fjalëkalim i pasaktë" }, { status: 401 });
   }
 
@@ -84,6 +93,7 @@ export async function POST(req: NextRequest) {
       entityId: user.id,
       ipAddress: ip,
       userAgent,
+      tenantId: user.tenantId,
     });
     return NextResponse.json({ error: "Email ose fjalëkalim i pasaktë" }, { status: 401 });
   }
@@ -111,6 +121,7 @@ export async function POST(req: NextRequest) {
     entityId: user.id,
     ipAddress: ip,
     userAgent,
+    tenantId: user.tenantId,
   });
 
   return NextResponse.json({

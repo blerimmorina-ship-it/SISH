@@ -8,11 +8,10 @@ import {
   ClipboardList,
   TestTube2,
   Receipt,
-  CheckCircle2,
-  PlayCircle,
-  XCircle,
+  Plus,
 } from "lucide-react";
 import { getDb } from "@/lib/db-context";
+import { VisitStatusActions } from "./status-actions";
 import { formatCurrency, formatDateTime } from "@/lib/utils";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
@@ -70,16 +69,26 @@ export default async function VisitDetailPage({ params }: { params: Promise<{ id
                 <Edit className="h-4 w-4" /> Edito
               </Link>
             </Button>
-            {visit.status === "PENDING" && (
-              <Button variant="premium" size="sm">
-                <PlayCircle className="h-4 w-4" /> Fillo
-              </Button>
-            )}
-            {visit.status === "IN_PROGRESS" && (
-              <Button variant="success" size="sm">
-                <CheckCircle2 className="h-4 w-4" /> Përfundo
-              </Button>
-            )}
+            <Button variant="outline" size="sm" asChild>
+              <Link href={`/lab/orders/new?patientId=${visit.patientId}&visitId=${visit.id}` as never}>
+                <TestTube2 className="h-4 w-4" /> Urdhër lab
+              </Link>
+            </Button>
+            <VisitStatusActions
+              visit={{
+                id: visit.id,
+                status: visit.status,
+                patientId: visit.patientId,
+                departmentId: visit.departmentId,
+                doctorId: visit.doctorId,
+                scheduledAt: visit.scheduledAt.toISOString(),
+                reason: visit.reason,
+                diagnosis: visit.diagnosis,
+                symptoms: visit.symptoms,
+                notes: visit.notes,
+                serviceIds: visit.services.map((s) => s.serviceId),
+              }}
+            />
           </>
         }
       />
@@ -136,8 +145,10 @@ export default async function VisitDetailPage({ params }: { params: Promise<{ id
                 <Link href={`/billing/${visit.invoice.id}`}>Hap faturën</Link>
               </Button>
             ) : (
-              <Button variant="premium" size="sm" className="w-full">
-                Krijo faturë
+              <Button variant="premium" size="sm" className="w-full" asChild>
+                <Link href={`/billing/new?visitId=${visit.id}&patientId=${visit.patientId}` as never}>
+                  <Plus className="h-4 w-4" /> Krijo faturë
+                </Link>
               </Button>
             )}
           </CardContent>
