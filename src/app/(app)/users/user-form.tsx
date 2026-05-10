@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ROLE_LABELS, type Role } from "@/lib/rbac";
-import { evaluatePasswordStrength } from "@/lib/password";
+import { evaluatePasswordStrength } from "@/lib/password-strength";
 import { toast } from "sonner";
 
 const ROLES: Role[] = [
