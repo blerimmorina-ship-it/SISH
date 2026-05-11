@@ -4,9 +4,6 @@ import {
   ArrowLeft,
   FileSignature,
   Printer,
-  Send,
-  CheckCircle2,
-  XCircle,
   Calendar,
   User,
   Phone,
@@ -17,6 +14,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { QuoteSendButton, QuoteApproveButton, QuoteRejectButton } from "./status-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -59,13 +57,11 @@ export default async function QuoteDetailPage({ params }: { params: Promise<{ id
             <Button variant="outline" size="sm" asChild>
               <Link href={`/quotes/${quote.id}/print`}><Printer className="h-4 w-4" /> Printo</Link>
             </Button>
-            {quote.status === "DRAFT" && (
-              <Button variant="info" size="sm"><Send className="h-4 w-4" /> Dërgo</Button>
-            )}
+            {quote.status === "DRAFT" && <QuoteSendButton quoteId={quote.id} />}
             {quote.status === "SENT" && (
               <>
-                <Button variant="success" size="sm"><CheckCircle2 className="h-4 w-4" /> Aprovo</Button>
-                <Button variant="destructive" size="sm"><XCircle className="h-4 w-4" /> Refuzo</Button>
+                <QuoteApproveButton quoteId={quote.id} />
+                <QuoteRejectButton quoteId={quote.id} />
               </>
             )}
           </>

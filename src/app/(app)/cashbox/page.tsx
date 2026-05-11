@@ -1,12 +1,12 @@
-import { Wallet, ArrowDownCircle, ArrowUpCircle, Printer, Lock, Unlock, AlertTriangle } from "lucide-react";
+import { Wallet, ArrowDownCircle, ArrowUpCircle, Lock, Unlock, AlertTriangle } from "lucide-react";
 import { getDb } from "@/lib/db-context";
 import { formatCurrency, formatDateTime } from "@/lib/utils";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { StatCard } from "@/components/ui/stat-card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { OpenCashboxButton, CloseCashboxButton } from "./cashbox-actions";
 
 export const metadata = { title: "Arka" };
 export const dynamic = "force-dynamic";
@@ -47,16 +47,7 @@ export default async function CashboxPage() {
         title="Arka Ditore"
         description="Sesioni i hapur, hyrjet e ditës dhe raportet financiare"
         breadcrumb={[{ label: "Financa" }, { label: "Arka" }]}
-        actions={
-          <>
-            <Button variant="outline" size="sm">
-              <Printer className="h-4 w-4" /> Raporti X (Cash)
-            </Button>
-            <Button variant="outline" size="sm">
-              <Printer className="h-4 w-4" /> Raporti Z (Mbyll)
-            </Button>
-          </>
-        }
+        actions={null}
       />
 
       {/* Active session banner */}
@@ -75,9 +66,7 @@ export default async function CashboxPage() {
                 </div>
               </div>
             </div>
-            <Button variant="destructive" size="sm">
-              <Lock className="h-4 w-4" /> Mbyll arkën
-            </Button>
+            <CloseCashboxButton sessionId={activeSession.id} />
           </CardContent>
         </Card>
       ) : (
@@ -94,9 +83,7 @@ export default async function CashboxPage() {
                 </div>
               </div>
             </div>
-            <Button variant="premium" size="sm">
-              <Unlock className="h-4 w-4" /> Hap ditën
-            </Button>
+            <OpenCashboxButton />
           </CardContent>
         </Card>
       )}

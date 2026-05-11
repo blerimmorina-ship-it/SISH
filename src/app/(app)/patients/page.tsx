@@ -153,8 +153,8 @@ export default async function PatientsPage({
                           </div>
                         )}
                         {p.email && (
-                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                            <Mail className="h-3 w-3" /> {p.email}
+                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground max-w-[220px]">
+                            <Mail className="h-3 w-3 shrink-0" /> <span className="truncate">{p.email}</span>
                           </div>
                         )}
                         {!p.phone && !p.email && <span className="text-muted-foreground">—</span>}

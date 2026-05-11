@@ -3,8 +3,6 @@ import { notFound } from "next/navigation";
 import {
   ArrowLeft,
   CalendarDays,
-  CheckCircle2,
-  XCircle,
   PlayCircle,
   Clock,
   User,
@@ -16,6 +14,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { ApptConfirmButton, ApptCancelButton } from "./status-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -55,18 +54,16 @@ export default async function AppointmentDetailPage({ params }: { params: Promis
             <Button variant="ghost" size="sm" asChild>
               <Link href="/appointments"><ArrowLeft className="h-4 w-4" /> Kthehu</Link>
             </Button>
-            {appt.status === "SCHEDULED" && (
-              <Button variant="info" size="sm"><CheckCircle2 className="h-4 w-4" /> Konfirmo</Button>
-            )}
+            {appt.status === "SCHEDULED" && <ApptConfirmButton apptId={appt.id} />}
             {(appt.status === "CONFIRMED" || appt.status === "ARRIVED") && (
               <Button variant="success" size="sm" asChild>
-                <Link href={`/visits/new?patientId=${appt.patient.id}&fromAppointment=${appt.id}`}>
+                <Link href={`/visits/new?patientId=${appt.patient.id}&fromAppointment=${appt.id}` as never}>
                   <PlayCircle className="h-4 w-4" /> Krijo vizitë
                 </Link>
               </Button>
             )}
             {appt.status !== "CANCELLED" && appt.status !== "COMPLETED" && (
-              <Button variant="destructive" size="sm"><XCircle className="h-4 w-4" /> Anulo</Button>
+              <ApptCancelButton apptId={appt.id} />
             )}
           </>
         }
